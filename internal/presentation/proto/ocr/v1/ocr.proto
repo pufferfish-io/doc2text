@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package ocr.v1;
+
+option go_package = "doc2text/internal/presentation/proto/ocr/v1;ocrv1";
+
+service OcrService {
+  rpc Process (ParseRequest) returns (ParseResponse);
+}
+
+message ParseRequest {
+  string objectkey = 1;  
+}
+
+message ParseResponse {
+  string text = 1;
+}
