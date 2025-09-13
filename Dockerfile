@@ -1,5 +1,7 @@
-FROM golang:1.23 AS builder
+FROM golang:1.23.12 AS builder
 WORKDIR /app
+
+ENV GOTOOLCHAIN=auto
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -21,4 +23,3 @@ COPY --from=builder /app/app /app/app
 EXPOSE 8080 8090
 USER nonroot:nonroot
 ENTRYPOINT ["/app/app"]
-
