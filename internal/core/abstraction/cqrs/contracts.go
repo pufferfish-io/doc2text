@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-// ---- Контракты
-
 type Command interface{ IsCommand() }
 type Query interface{ IsQuery() }
 
@@ -16,8 +14,6 @@ type CommandHandler[C Command, R any] interface {
 type QueryHandler[Q Query, R any] interface {
 	Handle(ctx context.Context, q Q) (R, error)
 }
-
-// ---- Шина
 
 type Bus struct {
 	cmds map[string]any
@@ -36,8 +32,6 @@ func typeKey[T any]() string {
 	return fmt.Sprintf("%T", t)
 }
 
-// ---- РЕГИСТРАЦИЯ (generic ФУНКЦИИ, не методы)
-
 func RegisterCommand[C Command, R any](b *Bus, h CommandHandler[C, R]) {
 	b.cmds[typeKey[C]()] = h
 }
@@ -45,8 +39,6 @@ func RegisterCommand[C Command, R any](b *Bus, h CommandHandler[C, R]) {
 func RegisterQuery[Q Query, R any](b *Bus, h QueryHandler[Q, R]) {
 	b.qrys[typeKey[Q]()] = h
 }
-
-// ---- ВЫЗОВ (generic ФУНКЦИИ, не методы)
 
 func Exec[C Command, R any](b *Bus, ctx context.Context, cmd C) (R, error) {
 	h, ok := b.cmds[typeKey[C]()].(CommandHandler[C, R])
