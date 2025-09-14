@@ -37,11 +37,18 @@ type Yandex struct {
 }
 
 type S3 struct {
-	Endpoint  string `env:"ENDPOINT,required"`
-	AccessKey string `env:"ACCESS_KEY,required"`
-	SecretKey string `env:"SECRET_KEY,required"`
-	Bucket    string `env:"BUCKET,required"`
-	UseSSL    bool   `env:"USE_SSL" envDefault:"false"`
+    Endpoint  string `env:"ENDPOINT,required"`
+    AccessKey string `env:"ACCESS_KEY,required"`
+    SecretKey string `env:"SECRET_KEY,required"`
+    Bucket    string `env:"BUCKET,required"`
+    UseSSL    bool   `env:"USE_SSL" envDefault:"false"`
+}
+
+type OIDC struct {
+    Issuer      string `env:"OIDC_ISSUER"`
+    JWKSURL     string `env:"OIDC_JWKS_URL"`
+    Audience    string `env:"OIDC_AUDIENCE"`
+    ExpectedAzp string `env:"OIDC_EXPECTED_AZP"`
 }
 
 type Config struct {
@@ -51,21 +58,35 @@ type Config struct {
     Limits Limits `envPrefix:"DOC2TEXT_"`
     Yandex Yandex `envPrefix:"DOC2TEXT_YC_"`
     S3     S3     `envPrefix:"DOC2TEXT_S3_"`
+    OIDC   OIDC   `envPrefix:""`
 }
 
 func Load() (*Config, error) {
-	var c Config
-	if err := env.Parse(&c); err != nil {
-		return nil, fmt.Errorf("env parse: %w", err)
-	}
+    var c Config
+    if err := env.Parse(&c); err != nil {
+        return nil, fmt.Errorf("env parse: %w", err)
+    }
 
-	if c.Core.Provider == "yandex" {
-		if c.Yandex.FolderID == "" {
-			return nil, fmt.Errorf("DOC2TEXT_YC_FOLDER_ID is required for provider=yandex")
-		}
-		if c.Yandex.APIKey == "" && c.Yandex.IAMToken == "" {
-			return nil, fmt.Errorf("either DOC2TEXT_YC_API_KEY or DOC2TEXT_YC_IAM_TOKEN is required for provider=yandex")
-		}
-	}
-	return &c, nil
+    if c.Core.Provider == "yandex" {
+        if c.Yandex.FolderID == "" {
+            return nil, fmt.Errorf("DOC2TEXT_YC_FOLDER_ID is required for provider=yandex")
+        }
+        if c.Yandex.APIKey == "" && c.Yandex.IAMToken == "" {
+            return nil, fmt.Errorf("either DOC2TEXT_YC_API_KEY or DOC2TEXT_YC_IAM_TOKEN is required for provider=yandex")
+        }
+    }
+    // If any OIDC field is set, validate the minimal required trio for auth.
+    if c.OIDC.Issuer != "" || c.OIDC.JWKSURL != "" || c.OIDC.Audience != "" || c.OIDC.ExpectedAzp != "" {
+        if c.OIDC.Issuer == "" {
+            return nil, fmt.Errorf("OIDC_ISSUER is required when enabling OIDC auth")
+        }
+        if c.OIDC.JWKSURL == "" {
+            return nil, fmt.Errorf("OIDC_JWKS_URL is required when enabling OIDC auth")
+        }
+        if c.OIDC.Audience == "" {
+            return nil, fmt.Errorf("OIDC_AUDIENCE is required when enabling OIDC auth")
+        }
+        // ExpectedAzp is optional; if set, it will be enforced.
+    }
+    return &c, nil
 }

@@ -32,7 +32,7 @@
 - grpcurl example (plaintext):
 
 ```
-grpcurl -plaintext -d '{"objectkey":"folder/file.pdf"}' localhost:8081 ocr.v1.OcrService/Process
+grpcurl -plaintext -d '{"objectkey":"folder/file.pdf"}' localhost:50051 ocr.v1.OcrService/Process
 ```
 
 - Health-check:
@@ -60,6 +60,35 @@ curl http://localhost:8090/healthz
 - S3/MinIO (provide your own secrets):
   - `DOC2TEXT_S3_ENDPOINT`, `DOC2TEXT_S3_ACCESS_KEY`, `DOC2TEXT_S3_SECRET_KEY`, `DOC2TEXT_S3_BUCKET`, `DOC2TEXT_S3_USE_SSL`.
 
+### Auth (OIDC / Keycloak)
+
+- When these vars are set, gRPC enforces JWT validation for every call:
+  - `OIDC_ISSUER` — `https://auth.pufferfish.ru/realms/pufferfish`
+  - `OIDC_JWKS_URL` — `https://auth.pufferfish.ru/realms/pufferfish/protocol/openid-connect/certs`
+  - `OIDC_AUDIENCE` — `doc2text`
+  - `OIDC_EXPECTED_AZP` — `message-responder-ocr` (optional, but recommended)
+
+- Expected token (client_credentials via Keycloak, simplified):
+
+```
+{
+  "iss": "https://auth.pufferfish.ru/realms/pufferfish",
+  "aud": ["doc2text"],
+  "azp": "message-responder-ocr",
+  "client_id": "message-responder-ocr",
+  "scope": "email profile"
+}
+```
+
+- grpcurl example with Bearer token:
+
+```
+grpcurl -plaintext \
+  -H "authorization: Bearer $ACCESS_TOKEN" \
+  -d '{"objectkey":"folder/file.pdf"}' \
+  localhost:50051 ocr.v1.OcrService/Process
+```
+
 ## Recreate gRPC
 
 ```
@@ -78,7 +107,7 @@ protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=p
 Exports all variables from `.env` into the current shell and runs the service.
 
 ```
-export $(cat .env | xargs) && go run ./cmd/message-responder
+export $(cat .env | xargs) && go run ./cmd/doc2text
 ```
 
 ### Run with `source` (safer for complex values)
@@ -86,7 +115,7 @@ export $(cat .env | xargs) && go run ./cmd/message-responder
 Loads `.env` preserving quotes and special characters, then runs the service.
 
 ```
-set -a && source .env && set +a && go run ./cmd/message-responder
+set -a && source .env && set +a && go run ./cmd/doc2text
 ```
 
 ### Fetch/clean module deps
@@ -102,7 +131,7 @@ go mod tidy
 Builds the binary with verbose and command tracing. Removes old binary after build to keep the tree clean.
 
 ```
-go build -v -x ./cmd/message-responder && rm -f message-responder
+go build -v -x ./cmd/doc2text && rm -f doc2text
 ```
 
 ### Docker build (Buildx)
