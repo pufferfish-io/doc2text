@@ -50,7 +50,6 @@ curl http://localhost:8090/healthz
 - HTTP (health):
   - `DOC2TEXT_HTTP_ADDR` — HTTP bind address (default `:8090`).
   - `DOC2TEXT_HTTP_HEALTH_CHECK_PATH` — health path (default `/healthz`).
-  - `TG_FORWARDER_API_HEALTH_CHECK_PATH` — optional override for the path.
 - Limits:
   - `DOC2TEXT_MAX_FILE_MB` — max file size in MB (default `25`).
   - `DOC2TEXT_MAX_FILES` — max files per request (default `50`).
@@ -62,11 +61,11 @@ curl http://localhost:8090/healthz
 
 ### Auth (OIDC / Keycloak)
 
-- When these vars are set, gRPC enforces JWT validation for every call:
-  - `OIDC_ISSUER` — `https://auth.pufferfish.ru/realms/pufferfish`
-  - `OIDC_JWKS_URL` — `https://auth.pufferfish.ru/realms/pufferfish/protocol/openid-connect/certs`
-  - `OIDC_AUDIENCE` — `doc2text`
-  - `OIDC_EXPECTED_AZP` — `message-responder-ocr` (optional, but recommended)
+- When these vars are set, gRPC enforces JWT validation for every call (prefix `DOC2TEXT_OIDC_`):
+  - `DOC2TEXT_OIDC_ISSUER` — `https://auth.pufferfish.ru/realms/pufferfish`
+  - `DOC2TEXT_OIDC_JWKS_URL` — `https://auth.pufferfish.ru/realms/pufferfish/protocol/openid-connect/certs`
+  - `DOC2TEXT_OIDC_AUDIENCE` — `doc2text`
+  - `DOC2TEXT_OIDC_EXPECTED_AZP` — `message-responder-ocr` (optional, but recommended)
 
 - Expected token (client_credentials via Keycloak, simplified):
 

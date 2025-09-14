@@ -1,54 +1,55 @@
 package config
 
 import (
-	"fmt"
-	"time"
+    "fmt"
+    "time"
 
-	"github.com/caarlos0/env/v11"
+    "github.com/caarlos0/env/v11"
+    "github.com/go-playground/validator/v10"
 )
 
 type Core struct {
-	Provider string `env:"PROVIDER" envDefault:"mock"`
+    Provider string `env:"PROVIDER" envDefault:"mock" validate:"oneof=mock yandex"`
 }
 
 type Server struct {
-    Addr string `env:"ADDR" envDefault:":8080"`
+    Addr string `env:"ADDR" envDefault:":8080" validate:"required"`
 }
 
 type HTTP struct {
-    Addr            string `env:"ADDR"               envDefault:":8090"`
-    HealthCheckPath string `env:"HEALTH_CHECK_PATH" envDefault:"/healthz"`
+    Addr            string `env:"ADDR"               envDefault:":8090" validate:"required"`
+    HealthCheckPath string `env:"HEALTH_CHECK_PATH" envDefault:"/healthz" validate:"required"`
 }
 
 type Limits struct {
-	MaxFileMB int `env:"MAX_FILE_MB" envDefault:"25"`
-	MaxFiles  int `env:"MAX_FILES"   envDefault:"50"`
+    MaxFileMB int `env:"MAX_FILE_MB" envDefault:"25" validate:"gte=1"`
+    MaxFiles  int `env:"MAX_FILES"   envDefault:"50" validate:"gte=1"`
 }
 
 type Yandex struct {
-	APIKey        string        `env:"API_KEY"`
-	IAMToken      string        `env:"IAM_TOKEN"`
-	FolderID      string        `env:"FOLDER_ID"`
-	Endpoint      string        `env:"ENDPOINT"      envDefault:"https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze"`
-	Model         string        `env:"DEFAULT_MODEL" envDefault:"page"`
-	MinConfidence float64       `env:"MIN_CONFIDENCE" envDefault:"0.6"`
-	HTTPTimeout   time.Duration `env:"HTTP_TIMEOUT"  envDefault:"15s"`
-	Languages []string `env:"LANGUAGES" envSeparator:"," envDefault:"ru,en"`
+    APIKey        string        `env:"API_KEY"`
+    IAMToken      string        `env:"IAM_TOKEN"`
+    FolderID      string        `env:"FOLDER_ID"`
+    Endpoint      string        `env:"ENDPOINT"      envDefault:"https://vision.api.cloud.yandex.net/vision/v1/batchAnalyze"`
+    Model         string        `env:"DEFAULT_MODEL" envDefault:"page"`
+    MinConfidence float64       `env:"MIN_CONFIDENCE" envDefault:"0.6" validate:"gte=0,lte=1"`
+    HTTPTimeout   time.Duration `env:"HTTP_TIMEOUT"  envDefault:"15s" validate:"gt=0"`
+    Languages     []string      `env:"LANGUAGES" envSeparator:"," envDefault:"ru,en"`
 }
 
 type S3 struct {
-    Endpoint  string `env:"ENDPOINT,required"`
-    AccessKey string `env:"ACCESS_KEY,required"`
-    SecretKey string `env:"SECRET_KEY,required"`
-    Bucket    string `env:"BUCKET,required"`
+    Endpoint  string `env:"ENDPOINT,required" validate:"required"`
+    AccessKey string `env:"ACCESS_KEY,required" validate:"required"`
+    SecretKey string `env:"SECRET_KEY,required" validate:"required"`
+    Bucket    string `env:"BUCKET,required" validate:"required"`
     UseSSL    bool   `env:"USE_SSL" envDefault:"false"`
 }
 
 type OIDC struct {
-    Issuer      string `env:"OIDC_ISSUER"`
-    JWKSURL     string `env:"OIDC_JWKS_URL"`
-    Audience    string `env:"OIDC_AUDIENCE"`
-    ExpectedAzp string `env:"OIDC_EXPECTED_AZP"`
+    Issuer      string `env:"ISSUER"      validate:"required_with=JWKSURL Audience ExpectedAzp"`
+    JWKSURL     string `env:"JWKS_URL"    validate:"required_with=Issuer Audience ExpectedAzp,url"`
+    Audience    string `env:"AUDIENCE"    validate:"required_with=Issuer JWKSURL ExpectedAzp"`
+    ExpectedAzp string `env:"EXPECTED_AZP"`
 }
 
 type Config struct {
@@ -58,7 +59,7 @@ type Config struct {
     Limits Limits `envPrefix:"DOC2TEXT_"`
     Yandex Yandex `envPrefix:"DOC2TEXT_YC_"`
     S3     S3     `envPrefix:"DOC2TEXT_S3_"`
-    OIDC   OIDC   `envPrefix:""`
+    OIDC   OIDC   `envPrefix:"DOC2TEXT_OIDC_"`
 }
 
 func Load() (*Config, error) {
@@ -66,27 +67,10 @@ func Load() (*Config, error) {
     if err := env.Parse(&c); err != nil {
         return nil, fmt.Errorf("env parse: %w", err)
     }
+    v := validator.New()
+    if err := v.Struct(c); err != nil {
+        return nil, fmt.Errorf("config validate: %w", err)
+    }
 
-    if c.Core.Provider == "yandex" {
-        if c.Yandex.FolderID == "" {
-            return nil, fmt.Errorf("DOC2TEXT_YC_FOLDER_ID is required for provider=yandex")
-        }
-        if c.Yandex.APIKey == "" && c.Yandex.IAMToken == "" {
-            return nil, fmt.Errorf("either DOC2TEXT_YC_API_KEY or DOC2TEXT_YC_IAM_TOKEN is required for provider=yandex")
-        }
-    }
-    // If any OIDC field is set, validate the minimal required trio for auth.
-    if c.OIDC.Issuer != "" || c.OIDC.JWKSURL != "" || c.OIDC.Audience != "" || c.OIDC.ExpectedAzp != "" {
-        if c.OIDC.Issuer == "" {
-            return nil, fmt.Errorf("OIDC_ISSUER is required when enabling OIDC auth")
-        }
-        if c.OIDC.JWKSURL == "" {
-            return nil, fmt.Errorf("OIDC_JWKS_URL is required when enabling OIDC auth")
-        }
-        if c.OIDC.Audience == "" {
-            return nil, fmt.Errorf("OIDC_AUDIENCE is required when enabling OIDC auth")
-        }
-        // ExpectedAzp is optional; if set, it will be enforced.
-    }
     return &c, nil
 }
