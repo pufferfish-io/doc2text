@@ -13,8 +13,8 @@ import (
 	"doc2text/internal/infrastructure/yocr"
 	"doc2text/internal/infrastructure/zaplogger"
 	"doc2text/internal/presentation/api"
-	config "doc2text/internal/presentation/config"
 	"doc2text/internal/presentation/auth"
+	config "doc2text/internal/presentation/config"
 	ocrv1 "doc2text/internal/presentation/proto/ocr/v1"
 	"doc2text/internal/presentation/server/ocr/v1"
 	"log"
@@ -29,7 +29,7 @@ import (
 )
 
 func main() {
-    cfg := mustLoadConfig()
+	cfg := mustLoadConfig()
 
 	logger, clean := registerLogger()
 	defer clean()
@@ -42,9 +42,9 @@ func main() {
 
 	bus := registerCqrs(CqrsOptions{Logger: logger, Converter: convertor, Downloader: downloader, Recognizer: recognizer})
 
-    grpcSrv := startGRPCServer(cfg, bus, logger)
+	grpcSrv := startGRPCServer(cfg, bus, logger)
 
-	httpSrv := startHTTPServer(cfg.HTTP.Addr, cfg.HTTP.HealthCheckPath, logger)
+	httpSrv := startHTTPServer(cfg.HttpServer.Addr, "healthz", logger)
 
 	waitForShutdown(logger, grpcSrv, httpSrv)
 }
@@ -59,34 +59,34 @@ func mustLoadConfig() *config.Config {
 }
 
 func startGRPCServer(cfg *config.Config, bus *cqrs.Bus, l logger.Logger) *grpc.Server {
-    lis, err := net.Listen("tcp", cfg.Server.Addr)
-    if err != nil {
-        l.Error("listen: %v", err)
-        os.Exit(1)
-    }
+	lis, err := net.Listen("tcp", cfg.GRpcServer.Addr)
+	if err != nil {
+		l.Error("listen: %v", err)
+		os.Exit(1)
+	}
 
-    // Attach auth interceptor if OIDC is configured
-    var serverOpts []grpc.ServerOption
-    if interceptor, err := auth.NewUnaryAuthInterceptor(cfg.OIDC); err != nil {
-        l.Error("auth init: %v", err)
-        os.Exit(1)
-    } else if interceptor != nil {
-        serverOpts = append(serverOpts, grpc.UnaryInterceptor(interceptor))
-        l.Info("Auth: OIDC interceptor enabled (audience=%s)", cfg.OIDC.Audience)
-    } else {
-        l.Info("Auth: OIDC not configured; gRPC runs without auth")
-    }
+	// Attach auth interceptor if OIDC is configured
+	var serverOpts []grpc.ServerOption
+	if interceptor, err := auth.NewUnaryAuthInterceptor(cfg.OIDC); err != nil {
+		l.Error("auth init: %v", err)
+		os.Exit(1)
+	} else if interceptor != nil {
+		serverOpts = append(serverOpts, grpc.UnaryInterceptor(interceptor))
+		l.Info("Auth: OIDC interceptor enabled (audience=%s)", cfg.OIDC.Audience)
+	} else {
+		l.Info("Auth: OIDC not configured; gRPC runs without auth")
+	}
 
-    grpcSrv := grpc.NewServer(serverOpts...)
-    ocrv1.RegisterOcrServiceServer(grpcSrv, ocr.New(bus))
+	grpcSrv := grpc.NewServer(serverOpts...)
+	ocrv1.RegisterOcrServiceServer(grpcSrv, ocr.New(bus))
 
-    l.Info("gRPC listening on %s", cfg.Server.Addr)
-    go func() {
-        if err := grpcSrv.Serve(lis); err != nil {
-            l.Error("serve: %v", err)
-        }
-    }()
-    return grpcSrv
+	l.Info("gRPC listening on %s", cfg.GRpcServer.Addr)
+	go func() {
+		if err := grpcSrv.Serve(lis); err != nil {
+			l.Error("serve: %v", err)
+		}
+	}()
+	return grpcSrv
 }
 
 func registerLogger() (logger.Logger, func()) {

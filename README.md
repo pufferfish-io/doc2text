@@ -35,6 +35,18 @@
 grpcurl -plaintext -d '{"objectkey":"folder/file.pdf"}' localhost:50051 ocr.v1.OcrService/Process
 ```
 
+- Go client example:
+
+```
+go run ./examples/grpc-client \
+  | OIDC_TOKEN_URL=https://auth.pufferfish.ru/realms/pufferfish/protocol/openid-connect/token \
+    OIDC_CLIENT_ID=message-responder-ocr \
+    OIDC_CLIENT_SECRET=*** \
+    OIDC_SCOPE=openid \
+    GRPC_TARGET=localhost:50052 \
+    OBJECT_KEY=folder/file.pdf
+```
+
 - Health-check:
 
 ```
@@ -85,8 +97,10 @@ curl http://localhost:8090/healthz
 grpcurl -plaintext \
   -H "authorization: Bearer $ACCESS_TOKEN" \
   -d '{"objectkey":"folder/file.pdf"}' \
-  localhost:50051 ocr.v1.OcrService/Process
+localhost:50051 ocr.v1.OcrService/Process
 ```
+
+Note: for server configuration, use the `DOC2TEXT_OIDC_*` variables shown above. Client credentials envs (`OIDC_TOKEN_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_SCOPE`) are used only by the example client to obtain the token.
 
 ## Recreate gRPC
 
