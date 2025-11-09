@@ -44,7 +44,7 @@ func main() {
 
 	grpcSrv := startGRPCServer(cfg, bus, logger)
 
-	httpSrv := startHTTPServer(cfg.HttpServer.Addr, "healthz", logger)
+	httpSrv := startHTTPServer(cfg.HttpServer.Addr, "/healthz", logger)
 
 	waitForShutdown(logger, grpcSrv, httpSrv)
 }
