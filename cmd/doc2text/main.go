@@ -65,7 +65,6 @@ func startGRPCServer(cfg *config.Config, bus *cqrs.Bus, l logger.Logger) *grpc.S
 		os.Exit(1)
 	}
 
-	// Attach auth interceptor if OIDC is configured
 	var serverOpts []grpc.ServerOption
 	if interceptor, err := auth.NewUnaryAuthInterceptor(cfg.OIDC); err != nil {
 		l.Error("auth init: %v", err)
